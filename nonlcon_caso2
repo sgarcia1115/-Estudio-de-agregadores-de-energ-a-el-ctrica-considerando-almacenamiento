@@ -1,7 +1,9 @@
 function [c,ceq]=nonlcon_test4(x)
 %Ybus
-Ybus=load('Ybus_test3.mat');
-Y=cell2mat(struct2cell(Ybus));
+Y=[
+2.656383142366776e+02-1.309988754168061e+02i, -2.656383142366776e+02+1.309988754168061e+02i;
+-2.656383142366776e+02+1.309988754168061e+02i, 2.656383142366776e+02-1.309988754168061e+02i;
+];
 G=real(Y);
 B=imag(Y);
 %# de nodos
