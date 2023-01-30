@@ -123,7 +123,7 @@ for i=1:nV
     end
 end
 %Restricciones no lineales
-nonlcon = @nonlcon_test3;
+nonlcon = @nonlcon_caso1;
 
 options = optimoptions(@fmincon,'MaxFunctionEvaluations',10000);
 
