@@ -1,7 +1,9 @@
 function [c,ceq]=nonlcon_caso4(x)
 %Ybus
-Ybus=load('Ybus_test3.mat');
-Y=cell2mat(struct2cell(Ybus));
+Y=[
+2.656383142366776e+02-1.309988754168061e+02i, -2.656383142366776e+02+1.309988754168061e+02i;
+-2.656383142366776e+02+1.309988754168061e+02i, 2.656383142366776e+02-1.309988754168061e+02i;
+];
 G=real(Y);
 B=imag(Y);
 %# de nodos
@@ -9,7 +11,7 @@ n=2;
 %Conexiones
 ldat = [
    %i   j   
-  	1	  2;
+  	 1	  2;
 ];
 %numero de lineas
 nl=length(ldat);
