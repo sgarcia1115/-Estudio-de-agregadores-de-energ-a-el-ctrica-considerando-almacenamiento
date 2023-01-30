@@ -1,4 +1,4 @@
-function [c,ceq]=nonlcon_test4(x)
+function [c,ceq]=nonlcon_caso2(x)
 %Ybus
 Y=[
 2.656383142366776e+02-1.309988754168061e+02i, -2.656383142366776e+02+1.309988754168061e+02i;
@@ -10,7 +10,7 @@ B=imag(Y);
 n=2;
 %Conexiones
 ldat = [
-   %i   j   
+       %i       j   
 	1	2;
 ];
 %numero de lineas
