@@ -1,4 +1,4 @@
-function [c,ceq]=nonlcon_test3(x)
+function [c,ceq]=nonlcon_caso1(x)
 %Ybus
 Y=[
 2.656383142366776e+02-1.309988754168061e+02i, -2.656383142366776e+02+1.309988754168061e+02i;
