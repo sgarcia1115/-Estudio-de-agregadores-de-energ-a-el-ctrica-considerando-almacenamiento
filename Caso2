@@ -1,0 +1,162 @@
+clear
+clc
+Sbase=1e6; %Sbase=1MVA
+Vbase=11e3; %Vbase=11kV
+%Cargar la Ybus reducida
+%Linea 1 - Nodo 1 a 2
+
+Cd=[%Curva de Demanda diaria cada hora
+    0.02, 0.015, 0.01, 0.015, 0.02, 0.09, 0.3, 0.5, 0.34, 0.3, 0.325, 0.35, 0.28, 0.17, 0.21, 0.3, 0.5, 1, 0.7, 0.19, 0.1, 0.07, 0.05, 0.03;
+];
+
+Dp=[%Demandas activas pico [kW]
+    0, 800;
+];
+Dq=[%Demandas reactivas pico [kW]
+    0, 750;
+];
+%Demandas nodo por cada hora (n,h)
+Dpt=Dp'*Cd;
+Dqt=Dq'*Cd;
+%Demandas en MW
+Dpt=Dpt/1e3;
+Dqt=Dqt/1e3;
+%Función de carga base
+bt=0*Cd;
+for i=1:size(Dpt)
+    bt=bt+Dpt(i,:)+Dqt(i,:)*1j;
+end
+bt_a=abs(bt);
+%Horarios
+Te2=[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]; % Vector de estado nodo 2
+Te2_c=zeros(1,24);
+
+grid = [
+   %i   j   r(ohms) x(ohms)
+	1	2	0.3664	0.1807;
+];
+
+%Grid p.u.
+grid(:,3)=grid(:,3)/((Vbase^2)/Sbase);
+grid(:,4)=grid(:,4)/((Vbase^2)/Sbase);
+
+%Transformador
+LT=6.3; %Capacidad Maxima en MW
+
+%Tiempo
+%Delta T (una hora)
+dt=1;
+%Total de saltos en el tiempo (un dia)
+Ts=24/dt;
+
+%Costo de energia en el tiempo
+%ce_t=[0.4, 0.4, 0.4, 0.4, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4]; %Proporcion del costo a lo largo del dia
+ce_t=[0.9 0.9 0.9 0.9 0.9 0.9 0.9 0.9 0.9 0.9 0.9 0.9 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1]; %Proporcion del costo a lo largo del dia
+ce=0.57335; %$/MWh
+cet=ce*ce_t; %Costo a lo largo del dia
+
+%Bateria
+%Nodo 2
+BP5=50/1000; %Capacidad en MW de cada vehiculo
+Vh_2=1; %# de vehiculos en el nodo 2
+BPT5=BP5*Vh_2; %Capacidad total en MW
+ChP5=10/1000; %Relación de la carga de potencia maxima en MW
+ChPT5=ChP5*Vh_2; %Relación total en MW
+
+%# de variables
+nV=144;
+
+%Implementación de la función objetivo para fmincon
+Fobj=@(x)(-(x(97)*cet(1)+x(98)*cet(2)+x(99)*cet(3)+x(100)*cet(4)+x(101)*cet(5)+x(102)*cet(6)+x(103)*cet(7)+x(104)*cet(8)+x(105)*cet(9)+x(106)*cet(10)+x(107)*cet(11)+x(108)*cet(12)+x(109)*cet(13)+x(110)*cet(14)+x(111)*cet(15)+x(112)*cet(16)+x(113)*cet(17)+x(114)*cet(18)+x(115)*cet(19)+x(116)*cet(20)+x(117)*cet(21)+x(118)*cet(22)+x(119)*cet(23)+x(120)*cet(24)));
+
+%Aeq y beq para restricciones lineales.
+Aeq=zeros(24,nV);
+% Restriccion State of Charge
+for i=1:23
+    Aeq(i,i+96)=-1/BPT5;
+    Aeq(i,i+120)=1;
+    Aeq(i,i+121)=-1;
+end
+Aeq(24,120)=-1/BPT5;
+Aeq(24,144)=1;
+Aeq(24,121)=-1;
+%Igualdad
+beq=zeros(24,1);
+%A_d y b_d para desigualdades lineales.  
+A_d = [];
+%Desigualdad
+b_d = [];
+
+%Limite inferior
+lb=zeros(1,nV); %Potencia activa generada y voltaje con limite inferior igual a 0
+
+%Limite superior
+ub=ones(1,nV)*inf; %Potencia reactiva generada, voltaje, fase (angulo) con limite superior igual a inf
+
+%Inicializacion
+x0=zeros(1,nV); %fase igual a 0
+
+for i=1:nV
+    if i>=1 && i<=24
+        %Potencia activa generada
+        ub(i)=1;
+        x0(i)=0.5;
+    end
+    if i>=25 && i<=48
+        lb(i)=-inf; %Potencia reactiva
+        x0(i)=0.5;
+    end
+    if i>=49 && i<=72
+        x0(i)=1; %Voltaje
+    end
+    if i>=73 && i<=96
+        lb(i)=-inf; %Fase
+    end
+    if i>=97 && i<=120
+        %Potencia activa inyectada nodo 5
+        lb(i)=-ChPT5;
+        ub(i)=ChPT5;
+    end
+    if i>=121 && i<=144
+        %State of Charge
+        lb(i)=0.5;
+        ub(i)=1;
+        x0(i)=0.5;
+    end
+end
+%Restricciones no lineales
+nonlcon = @nonlcon_caso2;
+
+options = optimoptions(@fmincon,'MaxFunctionEvaluations',10000);
+
+%función fmincon
+[X,fval,exitflag,output,lambda,grad,hessian] = fmincon(Fobj, x0, A_d, b_d, Aeq, beq, lb, ub, nonlcon, options);
+
+%Resultados
+Xt=0;
+for t=1:24
+    Xt=Xt+X(t+96); 
+end
+
+%Modelo con una linea, sin horarios, solo una bateria y curva de demanda
+%cambiante
+subplot(4,1,3)
+plot((X([97:120]))*1000)
+title('Potencia inyectada')
+ylabel('Pi kW')
+xlabel('tiempo t')
+subplot(4,1,4)
+plot(X([121:144]))
+title('State of Charge')
+ylabel('%')
+xlabel('tiempo t')
+subplot(4,1,2)
+plot(X([1:24]))
+title('Potencia Generador')
+ylabel('Pg MW')
+xlabel('tiempo t')
+subplot(4,1,1)
+plot(cet)
+title('Precio de la energía por cada hora')
+ylabel('$/MW')
+xlabel('tiempo t')
