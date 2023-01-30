@@ -1,0 +1,78 @@
+function [c,ceq]=nonlcon_caso3(x)
+%Ybus
+Ybus=load('Ybus_test3.mat');
+Y=cell2mat(struct2cell(Ybus));
+G=real(Y);
+B=imag(Y);
+%# de nodos
+n=2;
+%Conexiones
+ldat = [
+   %i   j   
+	1	2;
+];
+%numero de lineas
+nl=length(ldat);
+%Transformador
+LT=6.3; %Capacidad Maxima en MW
+%Tiempos
+Ts=24;
+%Restricciones de desigualdad
+c=zeros(1,Ts);
+%Restricciones de igualdad
+%ceq=zeros(1,2*n*Ts);
+ceq=[];
+%Potencias Generadas
+Pg=zeros(n,24);
+Qg=zeros(n,24);
+%Voltajes
+V=ones(n,24);
+%Angulos
+Th=zeros(n,24);
+for i=1:24
+    Pg(1,i)=x(i);
+    Qg(1,i)=x(i+24);
+    V(2,i)=x(i+48);
+    Th(2,i)=x(i+72);
+    Pg(2,i)=x(i+96);
+end
+% Cd=[%Curva de Demanda diaria cada hora
+%     0.02, 0.015, 0.01, 0.015, 0.02, 0.09, 0.3, 0.5, 0.34, 0.3, 0.325, 0.35, 0.28, 0.17, 0.21, 0.3, 0.5, 1, 0.7, 0.19, 0.1, 0.07, 0.05, 0.03;
+% ];
+Cd=[%Curva de Demanda diaria cada hora
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1;
+];
+Dp=[%Demandas activas pico
+    0, 546.73;
+];
+Dq=[%Demandas reactivas pico
+    0, 521.28;
+];
+%Demandas nodo por cada hora (n,h)
+Dpt=Dp'*Cd;
+Dqt=Dq'*Cd;
+%Demandas en MW
+Pd=Dpt/1e3;
+Qd=Dqt/1e3;
+%Función de carga base
+bt=0*Cd;
+for i=1:n
+    bt=bt+Pd(i,:)+Qd(i,:)*1j;
+end
+%Restricciones de flujo
+for t=1:Ts
+    for i=1:n
+        ceqpt=Pd(i,t)-Pg(i,t);
+        ceqqt=Qd(i,t)-Qg(i,t);
+        for j=1:n
+            ceqpt=ceqpt+(V(i,t)*V(j,t)*((G(i,j)*cos(Th(i,t)-Th(j,t)))+(B(i,j)*sin(Th(i,t)-Th(j,t)))));
+            ceqqt=ceqqt+(V(i,t)*V(j,t)*((G(i,j)*sin(Th(i,t)-Th(j,t)))-(B(i,j)*cos(Th(i,t)-Th(j,t)))));
+        end
+        ceq=[ceq ceqpt ceqqt];
+    end
+end
+%Restricciones transformador
+for t=1:Ts
+    c(t)=-LT+abs(-x(96+t)+bt(t));
+end
+end
